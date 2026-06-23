@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>letterOn</title>
-    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
@@ -80,6 +79,29 @@
         .animate-send .envelope { transform: translateY(100px) scale(0.4); opacity: 0; }
         .toast { background: var(--retro-red); color: white; padding: 15px 30px; border-radius: 30px; font-weight: bold; margin-top: 20px; opacity: 0; transform: translateY(20px); transition: 0.5s; text-align: center; }
         .animate-send .toast { opacity: 1; transform: translateY(0); transition-delay: 1.2s; }
+
+        /* ======== 💡 새로 추가된 알림 UI 디자인 ======== */
+        /* 새 메시지 인앱 알림 (토스트) */
+        #notification-toast {
+            position: fixed; top: -100px; left: 50%; transform: translateX(-50%);
+            background: var(--retro-red); color: white; padding: 12px 20px;
+            border-radius: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            z-index: 1000; transition: top 0.4s ease-in-out;
+            display: flex; align-items: center; gap: 10px; font-weight: bold; width: max-content; max-width: 90%; cursor: pointer;
+        }
+        #notification-toast.show { top: 20px; }
+
+        /* iOS 홈 화면 추가 유도 팝업 */
+        #ios-prompt {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.95); border: 2px solid var(--wood-brown);
+            padding: 15px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 999; width: 85%; max-width: 350px; text-align: center; display: none;
+        }
+        .ios-prompt-close {
+            position: absolute; top: 8px; right: 12px; cursor: pointer; font-weight: bold; color: #888; font-size: 16px;
+        }
+        /* ================================================= */
     </style>
 </head>
 <body>
@@ -88,7 +110,6 @@
     <header>letter On</header>
     
     <div class="content">
-        <!-- 1. 로그인 화면 -->
         <div id="login-screen">
             <div style="text-align: center; font-size: 80px; margin: 20px 0;">💌</div>
             <h2 style="text-align: center; color: var(--wood-brown);">따뜻한 아날로그 우체국</h2>
@@ -98,14 +119,12 @@
             <button class="primary" onclick="loginWithEwha()">구글 학교 계정으로 시작하기</button>
         </div>
 
-        <!-- 2. 프로필 설정 화면 (최초 로그인 시 강제 설정 및 변경 불가) -->
         <div id="profile-screen" class="hidden">
             <h3 style="text-align: center; margin-top:0;">활동할 닉네임을 지어주세요</h3>
             <p style="text-align: center; color: #8b6b5d; font-size: 14px; margin-bottom: 10px;">
                 편지함에서 이 닉네임으로 소통하게 됩니다.<br>(개인정보 유추 불가, 중복 불가)
             </p>
             
-            <!-- 절대 변경 불가 경고문 추가 -->
             <div style="background-color: #ffeaea; border: 2px solid #d32f2f; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
                 <p style="color: #d32f2f; font-size: 14px; font-weight: bold; text-align: center; margin: 0; line-height: 1.5;">
                     ⚠️ 주의사항 ⚠️<br>지금 설정하는 닉네임은 가입 후<br><u>어떤 경우에도 절대 변경할 수 없습니다!</u><br>신중하게 입력해주세요.
@@ -116,7 +135,6 @@
             <button class="primary" onclick="saveProfile()">이름표 달고 영구적으로 시작하기 ✨</button>
         </div>
 
-        <!-- 3. 메인 화면 -->
         <div id="main-screen" class="hidden">
             <div class="status-bar">
                 <div style="display: flex; flex-direction: column; gap: 8px;">
@@ -128,16 +146,13 @@
             
             <div style="text-align: center; font-size: 60px; margin-bottom: 20px;">📮🕊️</div>
 
-            <!-- letterOn 기획서 네이밍 적용 -->
             <button class="primary" onclick="showComposeScreen()">✍️ 마음 띄워 보내기</button>
             <button onclick="showPublicPoolScreen()">📬 우체통 열어보기</button>
             <button class="secondary" onclick="showInboxScreen()">📦 기억 보관함</button>
             
-            <!-- 관리자(파인만) 전용 버튼 -->
             <button id="btn-admin" onclick="showAdminScreen()" class="hidden danger" style="margin-top: 30px;">🚨 파인만 전용: 신고 관리</button>
         </div>
 
-        <!-- 4. 편지 작성 화면 -->
         <div id="compose-screen" class="hidden">
             <button class="back-btn" onclick="showMainScreen()">🔙 뒤로가기</button>
             <h3 style="color: var(--wood-brown); margin-top:0;">따뜻한 마음을 공공함에 전해보세요</h3>
@@ -158,7 +173,6 @@
             <button class="primary" onclick="sendLetter()">📮 편지 발송하기</button>
         </div>
 
-        <!-- 5. 공공 우체통 (수신함) 화면 -->
         <div id="public-pool-screen" class="hidden">
             <button class="back-btn" onclick="showMainScreen()">🔙 뒤로가기</button>
             <h3 style="margin-top:0;">📬 공공 우체통</h3>
@@ -168,11 +182,10 @@
             <div id="public-letters-container"></div>
         </div>
 
-        <!-- 6. 내 편지함 (기억 보관함) 화면 -->
         <div id="inbox-screen" class="hidden">
             <button class="back-btn" onclick="showMainScreen()">🔙 뒤로가기</button>
             <h3 style="margin-top:0;">📦 기억 보관함</h3>
-            <p style="font-size: 12px; color: var(--retro-red); margin-bottom: 10px;">* 연결된 편지를 클릭하면 실시간으로 답장을 주고받을 수 있습니다.</p>
+            <p style="font-size: 12px; color: var(--retro-red); margin-bottom: 10px;">* 연결된 편지를 클릭하면 실 문으로 답장을 주고받을 수 있습니다.</p>
             <div class="tab-container">
                 <div id="tab-received" class="tab active" onclick="switchTab('received')">나에게 온 마음</div>
                 <div id="tab-sent" class="tab" onclick="switchTab('sent')">내가 보낸 마음</div>
@@ -180,7 +193,6 @@
             <div id="letters-container"></div>
         </div>
 
-        <!-- 7. 편지(답장) 대화 화면 -->
         <div id="chat-screen" class="hidden">
             <button class="back-btn" onclick="closeChat()">🔙 보관함으로 돌아가기</button>
             <div class="status-bar" style="margin-bottom: 10px; padding: 10px;">
@@ -196,7 +208,6 @@
             </div>
         </div>
 
-        <!-- 8. 관리자(파인만) 신고 관리 화면 -->
         <div id="admin-screen" class="hidden">
             <button class="back-btn" onclick="showMainScreen()">🔙 메인으로 돌아가기</button>
             <h3 style="color: #d32f2f; margin-top:0;">🚨 접수된 신고 내역 (파인만 전용)</h3>
@@ -205,7 +216,20 @@
         </div>
     </div>
 
-    <!-- 애니메이션 연출 오버레이 -->
+    <div id="notification-toast" onclick="showInboxScreen()">
+        <span style="font-size: 20px;">💌</span>
+        <span id="notification-text">새 답장이 도착했어요!</span>
+    </div>
+
+    <div id="ios-prompt">
+        <div class="ios-prompt-close" onclick="document.getElementById('ios-prompt').style.display='none'">✕</div>
+        <p style="margin: 0; font-size: 14px; font-weight: bold; color: var(--wood-brown); line-height: 1.5;">
+            🍎 아이폰 유저이신가요?<br>
+            화면 아래 <b>[공유]</b> 버튼을 눌러<br>
+            <b>[홈 화면에 추가]</b>를 하시면<br>
+            새 편지 알림을 받을 수 있어요!
+        </p>
+    </div>
     <div id="animation-overlay">
         <div class="envelope">✉️</div>
         <div class="postbox">📮</div>
@@ -231,18 +255,21 @@
 
     let currentUser = null;
     let currentUserNickname = null;
-    let currentTab = 'received'; 
+    let currentTab = 'received';
     let currentChatLetterId = null;
     let currentChatPartnerEmail = null;
     let chatUnsubscribe = null;
+    
+    // 알림 초기화 플래그
+    let isNotificationInitialized = false;
 
     // 강력한 비속어 리스트 (베이스 코드 유지)
     const badWords = [
-        "개새끼", "개년", "개지랄", "새끼야", "이새끼", "저새끼", "씹새끼", "ㅅㄲ", "시발", "씨발", "ㅅㅂ", "씌발", "씨벌", 
-        "씨발년", "씹년", "지랄", "ㅈㄹ", "지랄하네", "창녀", "창남", "호로새끼", "호로자식", "걸레", "씹창", "좆", "좆망", 
-        "좆같다", "ㅈ같다", "좆새끼", "존나", "좆나", "등신", "뚱땡이", "돼지새끼", "미친놈", "미친년", "병신", "ㅂㅅ", 
-        "븅신", "틀딱", "느금마", "ㄴㄱㅁ", "느개비", "니애미", "니애비", "애미터진", "애비터진", "엠창", "썅", "개상", 
-        "니거", "뻐큐", "ㅗ", "닭대가리", "새대가리", "돌대가리", "빡대가리", "씹", "한남", "한남충", "김치녀", "된장녀", 
+        "개새끼", "개년", "개지랄", "새끼야", "이새끼", "저새끼", "씹새끼", "ㅅㄲ", "시발", "씨발", "ㅅㅂ", "씌발", "씨벌",
+        "씨발년", "씹년", "지랄", "ㅈㄹ", "지랄하네", "창녀", "창남", "호로새끼", "호로자식", "걸레", "씹창", "좆", "좆망",
+        "좆같다", "ㅈ같다", "좆새끼", "존나", "좆나", "등신", "뚱땡이", "돼지새끼", "미친놈", "미친년", "병신", "ㅂㅅ",
+        "븅신", "틀딱", "느금마", "ㄴㄱㅁ", "느개비", "니애미", "니애비", "애미터진", "애비터진", "엠창", "썅", "개상",
+        "니거", "뻐큐", "ㅗ", "닭대가리", "새대가리", "돌대가리", "빡대가리", "씹", "한남", "한남충", "김치녀", "된장녀",
         "한녀", "ㅇㅈㄹ"
     ];
 
@@ -303,7 +330,7 @@
 
             await db.collection("users").doc(currentUser.email).set({
                 nickname: nickname,
-                tickets: 0 
+                tickets: 0
             });
             currentUserNickname = nickname;
             alert(`환영합니다, ${nickname}님! 설정하신 닉네임은 영구적으로 사용됩니다.`);
@@ -329,7 +356,7 @@
                 from_email: currentUser.email,
                 from_nickname: currentUserNickname,
                 category: category,
-                content: content, 
+                content: content,
                 status: "public",
                 read_by: null,
                 read_by_nickname: null,
@@ -358,8 +385,8 @@
                 showMainScreen();
             }, 2500);
 
-        } catch (error) { 
-            alert("발송 실패: " + error.message); 
+        } catch (error) {
+            alert("발송 실패: " + error.message);
         }
     }
 
@@ -548,8 +575,8 @@
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
             });
             alert("✅ 파인만님에게 신고가 성공적으로 접수되었습니다.");
-        } catch (e) { 
-            alert("신고 접수 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."); 
+        } catch (e) {
+            alert("신고 접수 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
         }
     }
 
@@ -622,13 +649,95 @@
 
         try {
             if (isAccepted) {
-                const suspendTime = Date.now() + (3 * 24 * 60 * 60 * 1000); 
+                const suspendTime = Date.now() + (3 * 24 * 60 * 60 * 1000);
                 await db.collection("users").doc(reportedUserEmail).set({ suspendedUntil: suspendTime }, { merge: true });
             }
             await db.collection("reports").doc(reportId).update({ status: isAccepted ? "accepted" : "rejected" });
             alert(`신고가 ${isAccepted ? '수락(정지)' : '거절'} 처리되었습니다.`);
         } catch (e) { alert("처리 중 오류 발생"); }
     }
+
+
+    // ======== 💡 새로 추가된 백그라운드 알림 로직 ======== //
+    let messageListeners = [];
+    let initializedLetters = new Set(); 
+
+    function requestNotificationPermission() {
+        if ("Notification" in window && Notification.permission === "default") {
+            Notification.requestPermission();
+        }
+    }
+
+    function checkIOSPrompt() {
+        const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        const isStandalone = window.navigator.standalone === true; 
+        
+        if (isIos && !isStandalone) {
+            if (!localStorage.getItem('iosPromptShown')) {
+                document.getElementById('ios-prompt').style.display = 'block';
+                localStorage.setItem('iosPromptShown', 'true');
+            }
+        }
+    }
+
+    function setupGlobalNotificationListeners() {
+        messageListeners.forEach(unsub => unsub());
+        messageListeners = [];
+
+        db.collection("letters").where("from_email", "==", currentUser.email).where("status", "==", "read").onSnapshot(snap => {
+            snap.forEach(doc => attachMessageListener(doc.id));
+        });
+
+        db.collection("letters").where("read_by", "==", currentUser.email).onSnapshot(snap => {
+            snap.forEach(doc => attachMessageListener(doc.id));
+        });
+    }
+
+    function attachMessageListener(letterId) {
+        if (initializedLetters.has(letterId)) return; 
+        initializedLetters.add(letterId);
+
+        let isInitialLoad = true; 
+
+        const unsub = db.collection("letters").doc(letterId).collection("messages")
+            .orderBy("timestamp", "asc")
+            .onSnapshot(snap => {
+                if (isInitialLoad) {
+                    isInitialLoad = false;
+                    return; 
+                }
+
+                snap.docChanges().forEach(change => {
+                    if (change.type === "added") {
+                        const msg = change.doc.data();
+                        if (msg.sender_email !== currentUser.email) {
+                            triggerNotification(msg.content);
+                        }
+                    }
+                });
+            });
+        messageListeners.push(unsub);
+    }
+
+    function triggerNotification(content) {
+        // 1. 화면 켜져 있을 때 (인앱 토스트)
+        const toast = document.getElementById('notification-toast');
+        const textElem = document.getElementById('notification-text');
+        let snippet = content.length > 15 ? content.substring(0, 15) + "..." : content;
+        textElem.innerText = `새 답장: ${snippet}`;
+
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 4000);
+
+        // 2. 다른 탭 보고 있을 때 (웹 푸시 알림)
+        if (document.hidden && "Notification" in window && Notification.permission === "granted") {
+            new Notification("💌 letterOn 새 답장", {
+                body: snippet
+            });
+        }
+    }
+    // ================================================= //
+
 
     // ---------------- UI 전환 로직 ---------------- //
     async function showMainScreen() {
@@ -649,6 +758,14 @@
         if (userDoc.exists) {
             document.getElementById('ticket-count').innerText = userDoc.data().tickets || 0;
         }
+
+        // 💡 메인 화면 진입 시 단 한 번만 알림 기능 세팅
+        if (!isNotificationInitialized) {
+            requestNotificationPermission();
+            checkIOSPrompt();
+            setupGlobalNotificationListeners();
+            isNotificationInitialized = true;
+        }
     }
 
     function showComposeScreen() {
@@ -659,7 +776,7 @@
     function showPublicPoolScreen() {
         document.querySelectorAll('.content > div').forEach(d => d.classList.add('hidden'));
         document.getElementById('public-pool-screen').classList.remove('hidden');
-        loadPublicPool(); 
+        loadPublicPool();
     }
 
     function showInboxScreen() {
@@ -678,7 +795,7 @@
     function logout() {
         auth.signOut().then(() => {
             currentUser = null;
-            location.reload(); 
+            location.reload();
         });
     }
 </script>
