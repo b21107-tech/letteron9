@@ -56,9 +56,8 @@
         
         .pool-card { background: white; border: 2px solid var(--wood-brown); padding: 15px; margin-bottom: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 0 var(--wood-brown); }
         
-        /* 실시간 대화 화면 */
-        #chat-screen { flex-grow: 1; display: flex; flex-direction: column; height: 100%; }
-        #chat-messages { background-color: rgba(255,255,255,0.5); flex-grow: 1; overflow-y: auto; padding: 15px; border-radius: 8px; margin-bottom: 10px; border: 2px dashed var(--wood-brown); display: flex; flex-direction: column; max-height: 50vh; }
+        /* 실시간 대화 화면 및 건의함 공통 적용 */
+        #chat-messages, #feynman-chat-messages, #feynman-admin-chat-messages { background-color: rgba(255,255,255,0.5); flex-grow: 1; overflow-y: auto; padding: 15px; border-radius: 8px; margin-bottom: 10px; border: 2px dashed var(--wood-brown); display: flex; flex-direction: column; max-height: 50vh; min-height: 250px; }
         .letter-paper { background-color: var(--paper-bg); border: 1px solid #e0d8c3; padding: 15px; margin-bottom: 15px; border-radius: 8px; box-shadow: 2px 2px 4px rgba(0,0,0,0.05); }
         .letter-paper.me { border-left: 4px solid #8b6b5d; align-self: flex-end; width: 85%; }
         .letter-paper.other { border-left: 4px solid var(--retro-red); align-self: flex-start; width: 85%; }
@@ -80,8 +79,7 @@
         .toast { background: var(--retro-red); color: white; padding: 15px 30px; border-radius: 30px; font-weight: bold; margin-top: 20px; opacity: 0; transform: translateY(20px); transition: 0.5s; text-align: center; }
         .animate-send .toast { opacity: 1; transform: translateY(0); transition-delay: 1.2s; }
 
-        /* ======== 💡 새로 추가된 알림 UI 디자인 ======== */
-        /* 새 메시지 인앱 알림 (토스트) */
+        /* ======== 새 메시지 인앱 알림 (토스트) ======== */
         #notification-toast {
             position: fixed; top: -100px; left: 50%; transform: translateX(-50%);
             background: var(--retro-red); color: white; padding: 12px 20px;
@@ -101,13 +99,15 @@
         .ios-prompt-close {
             position: absolute; top: 8px; right: 12px; cursor: pointer; font-weight: bold; color: #888; font-size: 16px;
         }
-        /* ================================================= */
     </style>
 </head>
 <body>
 
 <div id="app-container">
-    <header>letter On</header>
+    <header>
+        letter On
+        <button id="noti-toggle-btn" class="hidden" onclick="toggleNotificationSetting()" style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); width: auto; padding: 6px 12px; margin: 0; font-size: 12px; background: var(--wood-brown); color: white; border-radius: 20px; box-shadow: none; height: auto; font-family: 'Pretendard', sans-serif;">🔔 알림 켬</button>
+    </header>
     
     <div class="content">
         <div id="login-screen">
@@ -150,7 +150,10 @@
             <button onclick="showPublicPoolScreen()">📬 우체통 열어보기</button>
             <button class="secondary" onclick="showInboxScreen()">📦 기억 보관함</button>
             
-            <button id="btn-admin" onclick="showAdminScreen()" class="hidden danger" style="margin-top: 30px;">🚨 파인만 전용: 신고 관리</button>
+            <button id="btn-feynman-user" onclick="openFeynmanChat()" style="background-color: #4a90e2; box-shadow: 0 4px 0 #2a609d;">🙋 파인만(관리자)에게 의견 건의하기</button>
+            
+            <button id="btn-feynman-admin" onclick="showFeynmanAdminInbox()" class="hidden danger" style="background-color: #e67e22; box-shadow: 0 4px 0 #d35400;">📥 파인만 전용: 민원함 (1:1 문의)</button>
+            <button id="btn-admin" onclick="showAdminScreen()" class="hidden danger" style="margin-top: 10px;">🚨 파인만 전용: 신고 관리</button>
         </div>
 
         <div id="compose-screen" class="hidden">
@@ -185,7 +188,7 @@
         <div id="inbox-screen" class="hidden">
             <button class="back-btn" onclick="showMainScreen()">🔙 뒤로가기</button>
             <h3 style="margin-top:0;">📦 기억 보관함</h3>
-            <p style="font-size: 12px; color: var(--retro-red); margin-bottom: 10px;">* 연결된 편지를 클릭하면 실 문으로 답장을 주고받을 수 있습니다.</p>
+            <p style="font-size: 12px; color: var(--retro-red); margin-bottom: 10px;">* 연결된 편지를 클릭하면 실시간으로 답장을 주고받을 수 있습니다.</p>
             <div class="tab-container">
                 <div id="tab-received" class="tab active" onclick="switchTab('received')">나에게 온 마음</div>
                 <div id="tab-sent" class="tab" onclick="switchTab('sent')">내가 보낸 마음</div>
@@ -213,6 +216,37 @@
             <h3 style="color: #d32f2f; margin-top:0;">🚨 접수된 신고 내역 (파인만 전용)</h3>
             <p style="font-size: 13px; color: #666; margin-bottom: 15px;">[편지 내용 보기]를 눌러 대화를 확인하고 정지 여부를 판단하세요.</p>
             <div id="admin-reports-container"></div>
+        </div>
+
+        <div id="feynman-chat-screen" class="hidden">
+            <button class="back-btn" onclick="closeFeynmanChat()">🔙 메인으로 돌아가기</button>
+            <div class="status-bar" style="margin-bottom: 10px; padding: 10px;">
+                <strong style="color: var(--retro-red); font-size: 16px;">🙋 파인만(관리자) 1:1 의견 및 건의함</strong>
+            </div>
+            <div id="feynman-chat-messages"></div>
+            <div style="display: flex; flex-direction: column; gap: 5px;">
+                <textarea id="feynman-chat-input" placeholder="건의 사항이나 의견을 자유롭게 남겨주세요..." style="height: 100px; padding-top: 15px; background-image:none;"></textarea>
+                <button class="primary" onclick="sendFeynmanMessageUser()">의견 보내기 ✉️</button>
+            </div>
+        </div>
+
+        <div id="feynman-admin-inbox-screen" class="hidden">
+            <button class="back-btn" onclick="showMainScreen()">🔙 메인으로 돌아가기</button>
+            <h3 style="color: #d32f2f; margin-top:0;">📥 접수된 민원함 목록 (파인만 전용)</h3>
+            <p style="font-size: 13px; color: #666; margin-bottom: 15px;">문의를 보낸 유저를 선택하여 1:1 소통을 시작하세요.</p>
+            <div id="feynman-admin-rooms-container"></div>
+        </div>
+
+        <div id="feynman-admin-chat-screen" class="hidden">
+            <button class="back-btn" onclick="showFeynmanAdminInbox()">🔙 민원함으로 돌아가기</button>
+            <div class="status-bar" style="margin-bottom: 10px; padding: 10px;">
+                <strong id="feynman-admin-chat-title" style="color: var(--retro-red); font-size: 16px;"></strong>
+            </div>
+            <div id="feynman-admin-chat-messages"></div>
+            <div style="display: flex; flex-direction: column; gap: 5px;">
+                <textarea id="feynman-admin-chat-input" placeholder="답변 내용을 작성해 주세요..." style="height: 100px; padding-top: 15px; background-image:none;"></textarea>
+                <button class="primary" onclick="sendFeynmanMessageAdmin()">답변하기 ✍️</button>
+            </div>
         </div>
     </div>
 
@@ -260,8 +294,9 @@
     let currentChatPartnerEmail = null;
     let chatUnsubscribe = null;
     
-    // 알림 초기화 플래그
+    // 알림 초기화 플래그 및 커스텀 토글 상태 변수
     let isNotificationInitialized = false;
+    let isNotificationEnabled = localStorage.getItem('noti_enabled') !== 'false';
 
     // 강력한 비속어 리스트 (베이스 코드 유지)
     const badWords = [
@@ -322,7 +357,6 @@
         if (!nickname) return alert("사용할 닉네임을 입력해주세요!");
 
         try {
-            // 중복 닉네임 완벽 차단 로직
             const nicknameSnapshot = await db.collection("users").where("nickname", "==", nickname).get();
             if (!nicknameSnapshot.empty) {
                 return alert("⚠️ 이미 누군가가 사용 중인 닉네임입니다. 절대 사용할 수 없으니 다른 닉네임으로 다시 정해주세요.");
@@ -373,7 +407,6 @@
                 tickets: firebase.firestore.FieldValue.increment(1)
             });
 
-            // 1.5초 편지 발송 애니메이션 연출
             const overlay = document.getElementById('animation-overlay');
             overlay.classList.add('active');
             setTimeout(() => overlay.classList.add('animate-send'), 100);
@@ -500,7 +533,7 @@
     // ---------------- 실시간 대화방 (채팅) ---------------- //
     function openChat(letterId, partnerEmail, partnerNickname) {
         currentChatLetterId = letterId;
-        currentChatPartnerEmail = partnerEmail; // 신고 기능을 위해 보이지 않게 저장
+        currentChatPartnerEmail = partnerEmail;
 
         document.getElementById('inbox-screen').classList.add('hidden');
         document.getElementById('chat-screen').classList.remove('hidden');
@@ -561,7 +594,7 @@
         }
     }
 
-    // ---------------- 관리자(파인만) 기능 완벽 패치 ---------------- //
+    // ---------------- 관리자(파인만) 기능 패치 ---------------- //
     async function reportUser() {
         if (!currentChatPartnerEmail) return alert("오류: 신고 대상을 확인할 수 없습니다.");
         if (!confirm("🚨 상대방을 파인만(관리자)에게 신고하시겠습니까?\n\n관리자가 대화 내용을 직접 확인한 후, 비매너로 판단되면 상대방은 3일간 정지됩니다.")) return;
@@ -590,7 +623,6 @@
         const container = document.getElementById('admin-reports-container');
         container.innerHTML = "<p>신고 내역을 불러오는 중...</p>";
 
-        // 에러를 명시적으로 잡아서 파인만 계정에 확실히 렌더링되게 수정
         db.collection("reports").where("status", "==", "pending").onSnapshot((snapshot) => {
             container.innerHTML = "";
             if (snapshot.empty) {
@@ -621,7 +653,6 @@
         });
     }
 
-    // 관리자가 대화 내용을 엿보는 기능
     async function previewChatForAdmin(letterId, reportDocId) {
         const previewDiv = document.getElementById(`preview-${reportDocId}`);
         if (!previewDiv.classList.contains('hidden')) {
@@ -658,13 +689,64 @@
     }
 
 
-    // ======== 💡 새로 추가된 백그라운드 알림 로직 ======== //
+    // ======== [수정사항] 백그라운드 및 커스텀 알림 토글 스위치 제어 로직 ======== //
     let messageListeners = [];
+    let feynmanMessageListener = null;
     let initializedLetters = new Set(); 
 
-    function requestNotificationPermission() {
-        if ("Notification" in window && Notification.permission === "default") {
-            Notification.requestPermission();
+    function updateNotiToggleButton() {
+        const btn = document.getElementById('noti-toggle-btn');
+        if (!currentUser) {
+            btn.classList.add('hidden');
+            return;
+        }
+        btn.classList.remove('hidden');
+        if (isNotificationEnabled && Notification.permission === "granted") {
+            btn.innerText = "🔔 알림 켬";
+            btn.style.background = "var(--retro-red)";
+        } else {
+            btn.innerText = "🔕 알림 끔";
+            btn.style.background = "#9e9e9e";
+        }
+    }
+
+    async function toggleNotificationSetting() {
+        if (isNotificationEnabled && Notification.permission === "granted") {
+            isNotificationEnabled = false;
+            localStorage.setItem('noti_enabled', 'false');
+            alert("알림 기능이 꺼졌습니다.");
+            updateNotiToggleButton();
+        } else {
+            if (!("Notification" in window)) {
+                alert("이 브라우저는 웹 알림을 지원하지 않습니다.");
+                return;
+            }
+            const permission = await Notification.requestPermission();
+            
+            // [수정사항] 권한 동의를 거부했을 때 명확한 경고 경고창 유도
+            if (permission === "denied") {
+                alert("⚠️ 알림 권한을 동의하지 않으면 편지 답장 알림이 오지 않습니다! 설정에서 알림을 허용해주세요.");
+                isNotificationEnabled = false;
+                localStorage.setItem('noti_enabled', 'false');
+            } else if (permission === "granted") {
+                isNotificationEnabled = true;
+                localStorage.setItem('noti_enabled', 'true');
+                alert("알림 기능이 성공적으로 켜졌습니다! 실시간 답장 알림을 전해드릴게요.");
+            }
+            updateNotiToggleButton();
+        }
+    }
+
+    async function requestNotificationPermission() {
+        if ("Notification" in window) {
+            if (Notification.permission === "default") {
+                const permission = await Notification.requestPermission();
+                if (permission === "denied") {
+                    alert("⚠️ 알림 권한을 동의하지 않으면 편지 답장 알림이 오지 않습니다! 설정에서 알림을 허용해주세요.");
+                    isNotificationEnabled = false;
+                    localStorage.setItem('noti_enabled', 'false');
+                }
+            }
         }
     }
 
@@ -691,6 +773,9 @@
         db.collection("letters").where("read_by", "==", currentUser.email).onSnapshot(snap => {
             snap.forEach(doc => attachMessageListener(doc.id));
         });
+
+        // 💡 파인만 1:1 건의 실시간 알림 리스너 추가
+        setupFeynmanNotificationListener();
     }
 
     function attachMessageListener(letterId) {
@@ -711,7 +796,7 @@
                     if (change.type === "added") {
                         const msg = change.doc.data();
                         if (msg.sender_email !== currentUser.email) {
-                            triggerNotification(msg.content);
+                            triggerNotification(msg.content, "편지 답장");
                         }
                     }
                 });
@@ -719,24 +804,207 @@
         messageListeners.push(unsub);
     }
 
-    function triggerNotification(content) {
-        // 1. 화면 켜져 있을 때 (인앱 토스트)
+    function setupFeynmanNotificationListener() {
+        if (feynmanMessageListener) feynmanMessageListener();
+        
+        if (currentUserNickname && currentUserNickname.trim() === "파인만") {
+            // 파인만은 모든 민원방의 새 메시지를 감지
+            feynmanMessageListener = db.collectionGroup("messages").orderBy("timestamp", "desc").limit(1).onSnapshot(snap => {
+                snap.docChanges().forEach(change => {
+                    if (change.type === "added") {
+                        const msg = change.doc.data();
+                        if (msg.sender_email !== currentUser.email && change.doc.ref.path.includes("feynman_chats")) {
+                            triggerNotification(msg.content, "📥 새로운 민원 접수");
+                        }
+                    }
+                });
+            });
+        } else {
+            // 일반 사용자는 자기 방의 파인만 답변을 감지
+            let isInitial = true;
+            feynmanMessageListener = db.collection("feynman_chats").doc(currentUser.email).collection("messages").orderBy("timestamp", "asc").onSnapshot(snap => {
+                if (isInitial) { isInitial = false; return; }
+                snap.docChanges().forEach(change => {
+                    if (change.type === "added") {
+                        const msg = change.doc.data();
+                        if (msg.sender_email !== currentUser.email) {
+                            triggerNotification(msg.content, "🙋 파인만님의 답변");
+                        }
+                    }
+                });
+            });
+        }
+    }
+
+    function triggerNotification(content, typeTitle = "새 답장") {
+        if (!isNotificationEnabled) return; // 💡 알림 설정 기능이 꺼져있을 땐 작동 차단
+
         const toast = document.getElementById('notification-toast');
         const textElem = document.getElementById('notification-text');
         let snippet = content.length > 15 ? content.substring(0, 15) + "..." : content;
-        textElem.innerText = `새 답장: ${snippet}`;
+        textElem.innerText = `${typeTitle}: ${snippet}`;
 
+        // 1. 포그라운드 (화면을 보고 있을 때 상단 토스트 바 연출)
         toast.classList.add('show');
         setTimeout(() => toast.classList.remove('show'), 4000);
 
-        // 2. 다른 탭 보고 있을 때 (웹 푸시 알림)
+        // 2. 백그라운드 (창이 닫혀있거나 다른 탭을 보고 있을 때 시스템 알림 연출)
         if (document.hidden && "Notification" in window && Notification.permission === "granted") {
-            new Notification("💌 letterOn 새 답장", {
+            new Notification(`💌 letterOn ${typeTitle}`, {
                 body: snippet
             });
         }
     }
-    // ================================================= //
+
+
+    // ======== [수정사항] 파인만 1:1 민원함 / 건의함 코어 엔진 로직 ======== //
+    let feynmanChatUnsub = null;
+    let feynmanAdminInboxUnsub = null;
+    let feynmanAdminChatUnsub = null;
+    let currentFeynmanAdminTargetUserEmail = null;
+
+    // A. 일반 사용자: 파인만 1:1 대화방 진입
+    function openFeynmanChat() {
+        document.querySelectorAll('.content > div').forEach(d => d.classList.add('hidden'));
+        document.getElementById('feynman-chat-screen').classList.remove('hidden');
+
+        // 메타 데이터 생성
+        db.collection("feynman_chats").doc(currentUser.email).set({
+            user_email: currentUser.email,
+            user_nickname: currentUserNickname,
+            last_updated: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        const container = document.getElementById('feynman-chat-messages');
+        feynmanChatUnsub = db.collection("feynman_chats").doc(currentUser.email).collection("messages")
+            .orderBy("timestamp", "asc")
+            .onSnapshot((snapshot) => {
+                container.innerHTML = "";
+                snapshot.forEach((doc) => {
+                    const msg = doc.data();
+                    const isMe = msg.sender_email === currentUser.email;
+                    const paperClass = isMe ? "me" : "other";
+                    const senderLabel = isMe ? "내가 보낸 의견" : "파인만(관리자)";
+                    const time = msg.timestamp ? msg.timestamp.toDate().toLocaleString() : "방금 전";
+                    
+                    container.innerHTML += `
+                        <div class="letter-paper ${paperClass}">
+                            <div class="letter-header">${senderLabel} <span style="float:right; font-weight:normal;">${time}</span></div>
+                            <div class="letter-body">${msg.content}</div>
+                        </div>
+                    `;
+                });
+                container.scrollTop = container.scrollHeight;
+            });
+    }
+
+    function closeFeynmanChat() {
+        if (feynmanChatUnsub) feynmanChatUnsub();
+        showMainScreen();
+    }
+
+    async function sendFeynmanMessageUser() {
+        const inputField = document.getElementById('feynman-chat-input');
+        let text = inputField.value.trim();
+        if (!text) return;
+
+        try {
+            await db.collection("feynman_chats").doc(currentUser.email).collection("messages").add({
+                sender_email: currentUser.email,
+                sender_nickname: currentUserNickname,
+                content: text,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            await db.collection("feynman_chats").doc(currentUser.email).update({
+                last_updated: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            inputField.value = "";
+        } catch (e) { alert("건의 전송에 실패했습니다: " + e.message); }
+    }
+
+    // B. 파인만 전용: 들어온 모든 건의방 목록함 로드
+    function showFeynmanAdminInbox() {
+        document.querySelectorAll('.content > div').forEach(d => d.classList.add('hidden'));
+        document.getElementById('feynman-admin-inbox-screen').classList.remove('hidden');
+        
+        const container = document.getElementById('feynman-admin-rooms-container');
+        container.innerHTML = "<p style='text-align:center;'>접수된 민원을 취합하는 중...</p>";
+
+        feynmanAdminInboxUnsub = db.collection("feynman_chats").orderBy("last_updated", "desc").onSnapshot((snapshot) => {
+            container.innerHTML = "";
+            if (snapshot.empty) {
+                container.innerHTML = "<p style='color:#666; text-align:center; padding:20px;'>현재 들어온 건의 사항이나 민원이 없습니다.</p>";
+                return;
+            }
+
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+                container.innerHTML += `
+                    <div class="pool-card">
+                        <div>
+                            학생 닉네임: <strong style="font-size:16px; color:var(--retro-red);">${data.user_nickname}</strong><br>
+                            <span style="font-size:12px; color:#888;">${data.user_email}</span>
+                        </div>
+                        <button class="secondary" onclick="openFeynmanAdminChat('${data.user_email}', '${data.user_nickname}')" style="width: auto; padding: 8px 14px; font-size: 13px; margin: 0;">1:1 대화방 열기 💬</button>
+                    </div>`;
+            });
+        });
+    }
+
+    // C. 파인만 전용: 특정 유저와의 1:1 대화방 진입
+    function openFeynmanAdminChat(userEmail, userNickname) {
+        if (feynmanAdminInboxUnsub) feynmanAdminInboxUnsub();
+        currentFeynmanAdminTargetUserEmail = userEmail;
+
+        document.querySelectorAll('.content > div').forEach(d => d.classList.add('hidden'));
+        document.getElementById('feynman-admin-chat-screen').classList.remove('hidden');
+        document.getElementById('feynman-admin-chat-title').innerText = `대화 매칭: ${userNickname} 학생 (${userEmail})`;
+
+        const container = document.getElementById('feynman-admin-chat-messages');
+        feynmanAdminChatUnsub = db.collection("feynman_chats").doc(userEmail).collection("messages")
+            .orderBy("timestamp", "asc")
+            .onSnapshot((snapshot) => {
+                container.innerHTML = "";
+                snapshot.forEach((doc) => {
+                    const msg = doc.data();
+                    const isMe = msg.sender_email === currentUser.email; 
+                    const paperClass = isMe ? "me" : "other";
+                    const senderLabel = isMe ? "파인만(나)" : `${msg.sender_nickname} 학생`;
+                    const time = msg.timestamp ? msg.timestamp.toDate().toLocaleString() : "방금 전";
+                    
+                    container.innerHTML += `
+                        <div class="letter-paper ${paperClass}">
+                            <div class="letter-header">${senderLabel} <span style="float:right; font-weight:normal;">${time}</span></div>
+                            <div class="letter-body">${msg.content}</div>
+                        </div>
+                    `;
+                });
+                container.scrollTop = container.scrollHeight;
+            });
+    }
+
+    async function sendFeynmanMessageAdmin() {
+        const inputField = document.getElementById('feynman-admin-chat-input');
+        let text = inputField.value.trim();
+        if (!text) return;
+
+        try {
+            await db.collection("feynman_chats").doc(currentFeynmanAdminTargetUserEmail).collection("messages").add({
+                sender_email: currentUser.email,
+                sender_nickname: currentUserNickname,
+                content: text,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            await db.collection("feynman_chats").doc(currentFeynmanAdminTargetUserEmail).update({
+                last_updated: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            inputField.value = "";
+        } catch (e) { alert("답변 전송에 실패했습니다: " + e.message); }
+    }
 
 
     // ---------------- UI 전환 로직 ---------------- //
@@ -744,14 +1012,17 @@
         document.querySelectorAll('.content > div').forEach(d => d.classList.add('hidden'));
         document.getElementById('main-screen').classList.remove('hidden');
 
-        // 파인만 계정일 때만 관리자 버튼 표시 (trim 처리로 띄어쓰기 오류 방지)
+        // [수정사항] 닉네임 판별을 통한 관리자 메뉴 노출 분기 처리 완벽 적용
         if (currentUserNickname && currentUserNickname.trim() === "파인만") {
             document.getElementById('btn-admin').classList.remove('hidden');
+            document.getElementById('btn-feynman-admin').classList.remove('hidden');
+            document.getElementById('btn-feynman-user').classList.add('hidden');
         } else {
             document.getElementById('btn-admin').classList.add('hidden');
+            document.getElementById('btn-feynman-admin').classList.add('hidden');
+            document.getElementById('btn-feynman-user').classList.remove('hidden');
         }
 
-        // letterOn 규칙: 개인정보(이메일) 숨김
         document.getElementById('user-nickname').innerText = currentUserNickname + " 님";
         
         const userDoc = await db.collection("users").doc(currentUser.email).get();
@@ -759,13 +1030,15 @@
             document.getElementById('ticket-count').innerText = userDoc.data().tickets || 0;
         }
 
-        // 💡 메인 화면 진입 시 단 한 번만 알림 기능 세팅
         if (!isNotificationInitialized) {
             requestNotificationPermission();
             checkIOSPrompt();
             setupGlobalNotificationListeners();
             isNotificationInitialized = true;
         }
+        
+        // 메인 화면 도달 시 알림 토글 스위치 상태 업데이트 연동
+        updateNotiToggleButton();
     }
 
     function showComposeScreen() {
